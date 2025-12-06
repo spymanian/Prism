@@ -5,8 +5,15 @@ import { Kafka } from 'kafkajs';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import natural from 'natural';
+import compromise from 'compromise';
+import Sentiment from 'sentiment';
 
 dotenv.config();
+
+const sentiment = new Sentiment();
+const TfIdf = natural.TfIdf;
+const tokenizer = new natural.WordTokenizer();
 
 // Create HTTP server for Socket.IO
 const httpServer = createServer();
@@ -24,9 +31,10 @@ httpServer.listen(SOCKET_PORT, () => {
 });
 
 io.on('connection', (socket) => {
-  console.log('👋 UI client connected');
+  console.log('👋 UI client connected:', socket.id);
+  
   socket.on('disconnect', () => {
-    console.log('👋 UI client disconnected');
+    console.log('👋 UI client disconnected:', socket.id);
   });
 });
 
@@ -85,10 +93,208 @@ function parseCommand(text) {
   };
 }
 
-// Universal text transformer using GPT
+// Store historical message data for relative scoring
+const messageHistory = {
+  messages: [],
+  maxHistory: 50,
+  add(metrics) {
+    this.messages.push(metrics);
+    if (this.messages.length > this.maxHistory) {
+      this.messages.shift();
+    }
+  },
+  getAverage(metric) {
+    if (this.messages.length === 0) return 50;
+    const sum = this.messages.reduce((acc, m) => acc + m[metric], 0);
+    return sum / this.messages.length;
+  },
+  getPercentile(value, metric) {
+    if (this.messages.length < 5) return 50; // Need baseline
+    const sorted = this.messages.map(m => m[metric]).sort((a, b) => a - b);
+    const index = sorted.findIndex(v => v >= value);
+    return index === -1 ? 100 : Math.round((index / sorted.length) * 100);
+  }
+};
+
+// Algorithmic communication style analyzer
+function analyzeCommunicationStyle(text) {
+  const doc = compromise(text);
+  const tokens = tokenizer.tokenize(text.toLowerCase());
+  const sentimentResult = sentiment.analyze(text);
+  
+  // Calculate linguistic metrics
+  const wordCount = tokens.length;
+  const avgWordLength = tokens.reduce((sum, word) => sum + word.length, 0) / wordCount;
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const avgSentenceLength = wordCount / sentences.length;
+  
+  // Extract features
+  const hasQuestions = (text.match(/\?/g) || []).length;
+  const hasExclamations = (text.match(/!/g) || []).length;
+  const capitalWords = (text.match(/\b[A-Z]{2,}\b/g) || []).length;
+  const emojis = (text.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length;
+  
+  // POS tagging
+  const verbs = doc.verbs().length;
+  const nouns = doc.nouns().length;
+  const adjectives = doc.adjectives().length;
+  const adverbs = doc.adverbs().length;
+  
+  // Calculate style scores (0-100)
+  const formality = Math.min(100, Math.max(0, 
+    50 + (avgWordLength - 4) * 15 - emojis * 10 - hasExclamations * 5
+  ));
+  
+  const enthusiasm = Math.min(100, Math.max(0,
+    30 + hasExclamations * 20 + emojis * 10 + (sentimentResult.score > 0 ? 20 : 0)
+  ));
+  
+  const directness = Math.min(100, Math.max(0,
+    50 + (verbs / wordCount) * 100 - (adjectives / wordCount) * 50
+  ));
+  
+  const analyticalScore = Math.min(100, Math.max(0,
+    30 + (nouns / wordCount) * 80 + avgSentenceLength * 2
+  ));
+  
+  const expressiveness = Math.min(100, Math.max(0,
+    20 + (adjectives / wordCount) * 150 + (adverbs / wordCount) * 100 + emojis * 15
+  ));
+  
+  // Calculate message quality metrics
+  const qualityMetrics = {
+    clarity: Math.min(100, Math.max(0, 
+      50 + (wordCount > 5 ? 20 : -20) + (avgSentenceLength < 25 ? 15 : -10)
+    )),
+    depth: Math.min(100, Math.max(0,
+      30 + (nouns / wordCount) * 100 + (avgWordLength - 3) * 10
+    )),
+    engagement: Math.min(100, Math.max(0,
+      40 + hasQuestions * 15 + hasExclamations * 10 + (sentimentResult.score > 0 ? 20 : -10)
+    )),
+    coherence: Math.min(100, Math.max(0,
+      50 + (verbs > 0 ? 20 : -20) + (sentences.length > 1 ? 15 : -10)
+    ))
+  };
+  
+  const averageQuality = (qualityMetrics.clarity + qualityMetrics.depth + 
+                          qualityMetrics.engagement + qualityMetrics.coherence) / 4;
+  
+  // Store metrics for historical comparison
+  const currentMetrics = {
+    formality: Math.round(formality),
+    enthusiasm: Math.round(enthusiasm),
+    directness: Math.round(directness),
+    analyticalScore: Math.round(analyticalScore),
+    expressiveness: Math.round(expressiveness),
+    quality: Math.round(averageQuality)
+  };
+  messageHistory.add(currentMetrics);
+  
+  // Determine communication style profile
+  let styleDescription = '';
+  let styleTitle = '';
+  let baseScore = 50;
+  
+  if (formality > 70 && analyticalScore > 60) {
+    styleDescription = 'Professional, analytical, and detail-oriented';
+    styleTitle = 'Strategic Enterprise Leader';
+    baseScore = 45 + formality * 0.2;
+  } else if (enthusiasm > 70 && expressiveness > 60) {
+    styleDescription = 'Energetic, passionate, and engaging';
+    styleTitle = 'Visionary Innovator';
+    baseScore = 50 + enthusiasm * 0.15;
+  } else if (directness > 70 && formality < 50) {
+    styleDescription = 'Direct, concise, and action-oriented';
+    styleTitle = 'Bold Disruptor';
+    baseScore = 40 + directness * 0.25;
+  } else if (analyticalScore > 70) {
+    styleDescription = 'Thoughtful, strategic, and data-driven';
+    styleTitle = 'Data-Driven Strategist';
+    baseScore = 45 + analyticalScore * 0.2;
+  } else if (expressiveness > 60 && sentimentResult.score > 2) {
+    styleDescription = 'Warm, authentic, and empathetic';
+    styleTitle = 'Empathetic Connector';
+    baseScore = 50 + expressiveness * 0.15;
+  } else if (hasQuestions > 1) {
+    styleDescription = 'Curious, inquisitive, and collaborative';
+    styleTitle = 'Curious Entrepreneur';
+    baseScore = 45 + hasQuestions * 3;
+  } else {
+    styleDescription = 'Balanced, thoughtful, and adaptable';
+    styleTitle = 'Balanced Operator';
+    baseScore = 35 + (formality + directness) * 0.15;
+  }
+  
+  // Adjust score based on quality and historical performance
+  let compatibilityScore = Math.round(baseScore);
+  
+  // Quality adjustment (±15 points)
+  compatibilityScore += Math.round((averageQuality - 50) * 0.3);
+  
+  // Historical relative scoring (if enough data)
+  if (messageHistory.messages.length >= 5) {
+    const avgHistoricalQuality = messageHistory.getAverage('quality');
+    const relativeBonus = (averageQuality - avgHistoricalQuality) * 0.2;
+    compatibilityScore += Math.round(relativeBonus);
+    
+    // Percentile bonus for exceptional messages
+    const qualityPercentile = messageHistory.getPercentile(averageQuality, 'quality');
+    if (qualityPercentile >= 80) {
+      compatibilityScore += 5;
+    }
+  }
+  
+  // Clamp to realistic range (40-95 instead of 60-99)
+  compatibilityScore = Math.min(95, Math.max(40, compatibilityScore));
+  
+  // Network insight based on style uniqueness
+  const styleUniqueness = Math.abs(50 - formality) + Math.abs(50 - enthusiasm);
+  const networkInsight = Math.max(1, Math.min(7, Math.floor(5 - styleUniqueness / 30)));
+  
+  // Trust factor based on consistency
+  const consistency = 100 - Math.abs(formality - directness);
+  let trustFactor = consistency > 70 
+    ? 'Your consistent communication style builds strong trust'
+    : 'Your adaptive communication style creates diverse connections';
+  
+  // Add improvement suggestions for lower scores
+  let improvementTips = [];
+  if (compatibilityScore < 60) {
+    if (qualityMetrics.clarity < 50) improvementTips.push('clarity');
+    if (qualityMetrics.depth < 50) improvementTips.push('depth');
+    if (qualityMetrics.engagement < 50) improvementTips.push('engagement');
+    if (qualityMetrics.coherence < 50) improvementTips.push('structure');
+  }
+  
+  return {
+    communicationStyle: styleDescription,
+    styleTitle,
+    compatibilityScore,
+    networkInsight,
+    trustFactor,
+    qualityBreakdown: qualityMetrics,
+    improvementAreas: improvementTips,
+    historicalContext: messageHistory.messages.length >= 5 ? {
+      totalMessages: messageHistory.messages.length,
+      averageQuality: Math.round(messageHistory.getAverage('quality')),
+      currentPercentile: messageHistory.getPercentile(averageQuality, 'quality')
+    } : null,
+    metrics: {
+      formality: Math.round(formality),
+      enthusiasm: Math.round(enthusiasm),
+      directness: Math.round(directness),
+      analyticalScore: Math.round(analyticalScore),
+      expressiveness: Math.round(expressiveness),
+      sentiment: sentimentResult.score
+    }
+  };
+}
+
+// Universal text transformer using GPT or algorithms
 async function transformText(mode, arg, text) {
   const prompts = {
-    lang: `Translate the following text to ${arg || 'Spanish'}. Return ONLY the translation, nothing else.`,
+    lang: `Translate the following text to ${arg}. Return ONLY the translation, nothing else.`,
     tone: `Rewrite the following text in a ${arg || 'polite'} tone. Return ONLY the rewritten text, nothing else.`,
     simplify: `Simplify the following text to be easy to understand, like explaining to a 10-year-old. Return ONLY the simplified text, nothing else.`,
     sentiment: `Analyze the sentiment and mood of the following text. Return in format: "SENTIMENT: [description]. MOOD: [emoji]"`,
@@ -113,6 +319,50 @@ async function transformText(mode, arg, text) {
 
 Be creative and insightful. Choose a real successful founder whose communication style actually matches the input. The compatibilityScore should be 0-100, networkInsight should be 1-5.`
   };
+  
+  // Use algorithmic analysis for match mode, then get GPT celebrity
+  if (mode === 'match') {
+    const analysisResult = analyzeCommunicationStyle(text);
+    
+    // Use GPT to generate a celebrity match based on the style title
+    try {
+      const celebrityPrompt = `Given someone with the communication archetype "${analysisResult.styleTitle}" who is described as "${analysisResult.communicationStyle}", suggest ONE real successful founder/entrepreneur/business leader whose communication style matches this profile. Just respond with their name only, nothing else.`;
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert in analyzing communication styles of successful business leaders. Respond with only the person\'s name.'
+            },
+            {
+              role: 'user',
+              content: celebrityPrompt
+            }
+          ],
+          temperature: 0.8
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        analysisResult.matches = data.choices[0].message.content.trim();
+      } else {
+        analysisResult.matches = 'Successful Entrepreneur';
+      }
+    } catch (error) {
+      console.error('Celebrity generation error:', error);
+      analysisResult.matches = 'Successful Entrepreneur';
+    }
+    
+    return JSON.stringify(analysisResult, null, 2);
+  }
   
   const systemPrompt = prompts[mode] || prompts['simplify'];
 
@@ -304,10 +554,16 @@ async function consumeMessages() {
             return;
           }
           
+          // ONLY process messages from YOUR phone number - ignore everyone else
+          if (from_phone !== RECIPIENT_PHONE) {
+            console.log(`⏭️  Ignoring message from ${from_phone} (not authorized user ${RECIPIENT_PHONE})`);
+            return;
+          }
+          
           console.log(`\n📥 Message from ${from_phone}:`);
           console.log(`   Text: "${text}"`);
           
-          // Emit incoming message to UI
+          // Emit incoming message to UI (only your messages pass the phone filter above)
           io.emit('message', {
             id: Date.now(),
             text: text,
@@ -315,6 +571,8 @@ async function consumeMessages() {
             timestamp: new Date().toISOString(),
             from: from_phone
           });
+          
+          console.log(`   📤 Message emitted to UI`);
           
           // Parse command
           const { mode, arg, text: messageText } = parseCommand(text);
@@ -375,6 +633,8 @@ async function consumeMessages() {
               mode: mode,
               arg: arg
             });
+            
+            console.log(`   📤 Agent response emitted to UI`);
             
             // Send result back
             await sendReply(from_phone, replyText);

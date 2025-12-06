@@ -22,6 +22,7 @@ const producer = kafka.producer();
 
 const SERIES_API_URL = process.env.SERIES_API_URL;
 const SERIES_API_KEY = process.env.SERIES_API_KEY;
+const RECIPIENT_PHONE = process.env.RECIPIENT_PHONE;
 
 async function sendMessageViaKafka(messageText, fromPhone) {
   await producer.connect();
@@ -66,7 +67,7 @@ async function sendMessageViaKafka(messageText, fromPhone) {
   }
 }
 
-// Test both directions
+// Test with readline input OR by sending actual iMessage through Series API
 async function testBidirectional() {
   const readline = await import('readline');
   const rl = readline.createInterface({
@@ -78,34 +79,34 @@ async function testBidirectional() {
 
   console.log('\n🔮 Universal Message Rewriter - Test Producer');
   console.log('==============================================\n');
+  console.log('💡 NOTE: This is a TEST tool. Normally, messages come from Series API webhooks → Kafka automatically.\n');
+  console.log('This producer simulates sending messages as if they came from your phone.\n');
   console.log('Easy Command Formats:');
-  console.log('  lang es <text>       - Translate to Spanish (or any language)');
-  console.log('  tone polite <text>   - Rewrite in polite tone');
-  console.log('  simplify <text>      - Simplify for easy reading');
-  console.log('  sentiment <text>     - Analyze sentiment/mood');
-  console.log('  style genz <text>    - Rewrite in Gen-Z style');
-  console.log('  pro <text>           - Make it professional');
-  console.log('  slang <text>         - Make it casual/slang\n');
+  console.log('  lang:es <text>       - Translate to Spanish (or any language)');
+  console.log('  tone:polite <text>   - Rewrite in polite tone');
+  console.log('  simplify: <text>     - Simplify for easy reading');
+  console.log('  sentiment: <text>    - Analyze sentiment/mood');
+  console.log('  style:genz <text>    - Rewrite in Gen-Z style');
+  console.log('  pro: <text>          - Make it professional');
+  console.log('  slang: <text>        - Make it casual/slang\n');
   console.log('✨ MAGIC FEATURES:');
-  console.log('  emotion <text>       - Emotional intelligence + healthier rewrite');
-  console.log('  culture japan <text> - Culturally adapt for Japan/Korea/etc');
-  console.log('  vibe mentor <text>   - Rewrite in a specific personality');
-  console.log('  match <text>         - Analyze communication style & get compatibility score\n');
+  console.log('  emotion: <text>      - Emotional intelligence + healthier rewrite');
+  console.log('  culture:japan <text> - Culturally adapt for Japan/Korea/etc');
+  console.log('  vibe:mentor <text>   - Rewrite in a specific personality');
+  console.log('  match: <text>        - Analyze communication style & get compatibility score\n');
   console.log('Examples:');
-  console.log('  lang fr Can we meet tomorrow?');
-  console.log('  emotion okay whatever');
-  console.log('  culture japan My bad I forgot');
-  console.log('  vibe mentor I need help with this');
-  console.log('  match Hey! Really excited about this opportunity');
+  console.log('  lang:fr Can we meet tomorrow?');
+  console.log('  emotion: okay whatever');
+  console.log('  culture:japan My bad I forgot');
+  console.log('  vibe:mentor I need help with this');
+  console.log('  match: Hey! Really excited about this opportunity');
   console.log('  Just send plain text (defaults to simplify)\n');
-  console.log('💡 Tip: No colons needed! Just space-separated commands.\n');
 
-  const message = await question('Enter your message: ');
+  const message = await question('Enter your test message: ');
 
-  console.log('\n📤 Sending message...');
-  await sendMessageViaKafka(message, process.env.RECIPIENT_PHONE);
+  console.log('\n📤 Sending test message to Kafka...');
+  await sendMessageViaKafka(message, RECIPIENT_PHONE);
 
   rl.close();
 }
-
 testBidirectional();

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import PersonalityGraph from './PersonalityGraph.js';
+import MatchCard from './MatchCard.js';
 import io from 'socket.io-client';
 
 const socket = io('http://localhost:4000');
@@ -8,11 +9,22 @@ const socket = io('http://localhost:4000');
 function App() {
   const [messages, setMessages] = useState([]);
   const [personality, setPersonality] = useState(null);
+  const [matchResult, setMatchResult] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [connected, setConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState('all');
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const messagesEndRef = useRef(null);
+
+  // Toggle dark mode
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    document.body.className = darkMode ? 'dark-mode' : 'light-mode';
+  }, [darkMode]);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -67,6 +79,12 @@ function App() {
           timestamp: new Date(msg.timestamp)
         }];
         analyzePersonality(updated);
+        
+        // Check if this is a match result
+        if (msg.mode === 'match' && msg.type === 'agent') {
+          setMatchResult(msg.text);
+        }
+        
         return updated;
       });
     });
@@ -92,46 +110,99 @@ function App() {
     // Get all user messages
     const userMessages = allMessages.filter(m => m.type === 'user').map(m => m.text);
     
-    // Calculate traits based on message content
+    // Calculate traits based on actual linguistic patterns (aligned with match algorithm)
     const calculateTraits = (messages) => {
-      const allText = messages.join(' ').toLowerCase();
-      const wordCount = allText.split(/\s+/).length;
+      if (messages.length === 0) return { openness: 50, conscientiousness: 50, extraversion: 50, agreeableness: 50, neuroticism: 50 };
       
-      // Openness - variety of commands used, creative language
+      const allText = messages.join(' ');
+      const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
+      const sentences = allText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      
+      // Linguistic analysis (matching backend algorithm) - using RATIOS not totals
+      const avgWordLength = allText.split(/\s+/).reduce((sum, word) => sum + word.length, 0) / wordCount;
+      const avgSentenceLength = wordCount / Math.max(1, sentences.length);
+      const questionCount = (allText.match(/\?/g) || []).length;
+      const exclamationCount = (allText.match(/!/g) || []).length;
+      const capitalWords = (allText.match(/\b[A-Z]{2,}\b/g) || []).length;
+      const emojis = (allText.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length;
+      
+      // Convert to per-message averages to prevent unbounded growth
+      const avgQuestionsPerMsg = questionCount / messages.length;
+      const avgExclamationsPerMsg = exclamationCount / messages.length;
+      const avgEmojisPerMsg = emojis / messages.length;
+      const avgWordsPerMsg = wordCount / messages.length;
+      const avgCapitalsPerMsg = capitalWords / messages.length;
+      
+      // Command usage patterns
       const commandVariety = new Set(allMessages.filter(m => m.mode).map(m => m.mode)).size;
-      const openness = Math.min(100, (commandVariety * 20) + (wordCount * 2));
-      
-      // Conscientiousness - use of professional/formal modes
-      const professionalCount = allMessages.filter(m => m.mode === 'pro' || m.mode === 'tone').length;
-      const conscientiousness = Math.min(100, (professionalCount * 25) + 30 + Math.random() * 20);
-      
-      // Extraversion - message length and frequency
-      const avgLength = wordCount / messages.length;
-      const extraversion = Math.min(100, (avgLength * 10) + (messages.length * 5));
-      
-      // Agreeableness - use of polite/culture modes
-      const politeCount = allMessages.filter(m => 
-        m.mode === 'culture' || (m.mode === 'tone' && m.arg === 'polite')
-      ).length;
-      const agreeableness = Math.min(100, (politeCount * 30) + 40 + Math.random() * 20);
-      
-      // Neuroticism (inverted for emotional stability) - use of emotion mode
       const emotionCount = allMessages.filter(m => m.mode === 'emotion').length;
-      const neuroticism = Math.max(0, 50 - (emotionCount * 15) + Math.random() * 30);
+      const cultureCount = allMessages.filter(m => m.mode === 'culture').length;
+      const professionalCount = allMessages.filter(m => m.mode === 'pro' || m.mode === 'tone').length;
+      const langCount = allMessages.filter(m => m.mode === 'lang').length;
+      
+      // Calculate formality (from backend algorithm)
+      const formality = Math.min(100, Math.max(0, 
+        50 + (avgWordLength - 4) * 15 - avgEmojisPerMsg * 10 - avgExclamationsPerMsg * 5
+      ));
+      
+      // Calculate enthusiasm (from backend algorithm)
+      const enthusiasm = Math.min(100, Math.max(0,
+        30 + Math.min(20, avgExclamationsPerMsg * 20) + Math.min(30, avgEmojisPerMsg * 10)
+      ));
+      
+      // Calculate expressiveness (from backend algorithm)
+      const expressiveness = Math.min(100, Math.max(0,
+        20 + Math.min(45, avgEmojisPerMsg * 15) + Math.min(30, avgExclamationsPerMsg * 10)
+      ));
+      
+      // Map backend metrics to Big Five traits for consistency
+      // OPENNESS - Curiosity, creativity, openness to experience
+      // Capped to prevent unbounded growth
+      const openness = Math.min(100, Math.max(20,
+        30 + Math.min(36, commandVariety * 12) + Math.min(24, avgQuestionsPerMsg * 8) + 
+        Math.min(20, langCount / messages.length * 100) + (avgWordLength - 4) * 8
+      ));
+      
+      // CONSCIENTIOUSNESS - Organization, reliability, professionalism
+      const conscientiousness = Math.min(100, Math.max(20,
+        formality * 0.6 + Math.min(30, professionalCount / messages.length * 150) + (avgSentenceLength * 2)
+      ));
+      
+      // EXTRAVERSION - Energy, enthusiasm, sociability
+      // Message count capped to prevent unbounded growth
+      const extraversion = Math.min(100, Math.max(20,
+        enthusiasm * 0.7 + Math.min(20, Math.log(messages.length + 1) * 8) + Math.min(15, avgWordsPerMsg * 0.5)
+      ));
+      
+      // AGREEABLENESS - Cooperation, empathy, warmth
+      const agreeableness = Math.min(100, Math.max(20,
+        50 + Math.min(30, cultureCount / messages.length * 150) + 
+        Math.min(20, emotionCount / messages.length * 100) + 
+        (expressiveness * 0.3) - (avgCapitalsPerMsg * 5)
+      ));
+      
+      // EMOTIONAL STABILITY (inverse of Neuroticism)
+      const emotionalStability = Math.min(100, Math.max(20,
+        60 + Math.min(24, emotionCount / messages.length * 120) - 
+        Math.min(15, avgExclamationsPerMsg * 3) - (avgCapitalsPerMsg * 4) +
+        (formality > 50 ? 10 : -5)
+      ));
+      const neuroticism = 100 - emotionalStability;
       
       return {
-        openness: Math.max(20, openness),
-        conscientiousness: Math.max(20, conscientiousness),
-        extraversion: Math.max(20, extraversion),
-        agreeableness: Math.max(20, agreeableness),
-        neuroticism: Math.max(20, neuroticism)
+        openness: Math.round(openness),
+        conscientiousness: Math.round(conscientiousness),
+        extraversion: Math.round(extraversion),
+        agreeableness: Math.round(agreeableness),
+        neuroticism: Math.round(neuroticism)
       };
     };
     
     setTimeout(() => {
+      const traits = calculateTraits(userMessages);
       const personality = {
-        type: detectPersonalityType(userMessages),
-        traits: calculateTraits(userMessages)
+        type: detectPersonalityType(userMessages, traits),
+        traits: traits
       };
       setPersonality(personality);
       setIsAnalyzing(false);
@@ -250,26 +321,55 @@ arg = "${msg.arg || ''}"`).join('\n')}`;
     };
   };
 
-  const detectPersonalityType = (messages) => {
-    const text = messages.join(' ').toLowerCase();
+  const detectPersonalityType = (messages, traits) => {
+    if (!traits) {
+      return 'Analyzing...';
+    }
     
-    if (text.includes('emotion') || text.includes('feel')) {
-      return 'Empathetic Communicator';
-    } else if (text.includes('culture') || text.includes('polite')) {
-      return 'Cultural Navigator';
-    } else if (text.includes('slang') || text.includes('genz')) {
-      return 'Casual & Creative';
-    } else if (text.includes('pro') || text.includes('professional')) {
-      return 'Professional & Precise';
+    // Use Big Five traits to determine personality archetype
+    const { openness, conscientiousness, extraversion, agreeableness, neuroticism } = traits;
+    const emotionalStability = 100 - neuroticism;
+    
+    // Match to personality archetypes based on trait combinations
+    if (openness >= 70 && extraversion >= 60) {
+      return 'The Innovative Explorer';
+    } else if (conscientiousness >= 75 && emotionalStability >= 65) {
+      return 'The Reliable Strategist';
+    } else if (extraversion >= 75 && agreeableness >= 70) {
+      return 'The Charismatic Connector';
+    } else if (agreeableness >= 75 && emotionalStability >= 70) {
+      return 'The Empathetic Diplomat';
+    } else if (openness >= 70 && conscientiousness >= 70) {
+      return 'The Analytical Visionary';
+    } else if (extraversion >= 70) {
+      return 'The Energetic Communicator';
+    } else if (conscientiousness >= 70) {
+      return 'The Disciplined Professional';
+    } else if (openness >= 70) {
+      return 'The Creative Thinker';
+    } else if (agreeableness >= 70) {
+      return 'The Collaborative Partner';
+    } else if (emotionalStability >= 70) {
+      return 'The Calm Mediator';
     } else {
-      return 'Balanced Explorer';
+      return 'The Balanced Adapter';
     }
   };
 
   return (
     <div className="App">
-      <div className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
-        {connected ? '● Connected' : '○ Disconnected'}
+      <div className="app-header">
+        <div className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
+          {connected ? '● Connected' : '○ Disconnected'}
+        </div>
+        
+        <button 
+          onClick={() => setDarkMode(!darkMode)} 
+          className="theme-toggle"
+          title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {darkMode ? '☀️' : '🌙'}
+        </button>
       </div>
       
       <div className="container-grid">
@@ -384,6 +484,11 @@ arg = "${msg.arg || ''}"`).join('\n')}`;
               </div>
             )}
             
+            {/* Match Result Card */}
+            {matchResult && (
+              <MatchCard matchData={matchResult} />
+            )}
+            
             {isAnalyzing && (
               <div className="analyzing">
                 <div className="spinner"></div>
@@ -400,37 +505,37 @@ arg = "${msg.arg || ''}"`).join('\n')}`;
                 </div>
                 <div className="traits-list">
                   <div className="trait">
-                    <span>Openness</span>
+                    <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>🔴 Openness</span>
                     <div className="trait-bar">
-                      <div className="trait-fill" style={{ width: `${personality.traits.openness}%` }}></div>
+                      <div className="trait-fill" style={{ width: `${personality.traits.openness}%`, backgroundColor: '#ff6b6b' }}></div>
                     </div>
                     <span>{Math.round(personality.traits.openness)}%</span>
                   </div>
                   <div className="trait">
-                    <span>Conscientiousness</span>
+                    <span style={{ color: '#4ecdc4', fontWeight: 'bold' }}>🔵 Conscientiousness</span>
                     <div className="trait-bar">
-                      <div className="trait-fill" style={{ width: `${personality.traits.conscientiousness}%` }}></div>
+                      <div className="trait-fill" style={{ width: `${personality.traits.conscientiousness}%`, backgroundColor: '#4ecdc4' }}></div>
                     </div>
                     <span>{Math.round(personality.traits.conscientiousness)}%</span>
                   </div>
                   <div className="trait">
-                    <span>Extraversion</span>
+                    <span style={{ color: '#45b7d1', fontWeight: 'bold' }}>💙 Extraversion</span>
                     <div className="trait-bar">
-                      <div className="trait-fill" style={{ width: `${personality.traits.extraversion}%` }}></div>
+                      <div className="trait-fill" style={{ width: `${personality.traits.extraversion}%`, backgroundColor: '#45b7d1' }}></div>
                     </div>
                     <span>{Math.round(personality.traits.extraversion)}%</span>
                   </div>
                   <div className="trait">
-                    <span>Agreeableness</span>
+                    <span style={{ color: '#96ceb4', fontWeight: 'bold' }}>💚 Agreeableness</span>
                     <div className="trait-bar">
-                      <div className="trait-fill" style={{ width: `${personality.traits.agreeableness}%` }}></div>
+                      <div className="trait-fill" style={{ width: `${personality.traits.agreeableness}%`, backgroundColor: '#96ceb4' }}></div>
                     </div>
                     <span>{Math.round(personality.traits.agreeableness)}%</span>
                   </div>
                   <div className="trait">
-                    <span>Emotional Stability</span>
+                    <span style={{ color: '#ffeaa7', fontWeight: 'bold' }}>💛 Emotional Stability</span>
                     <div className="trait-bar">
-                      <div className="trait-fill" style={{ width: `${100 - personality.traits.neuroticism}%` }}></div>
+                      <div className="trait-fill" style={{ width: `${100 - personality.traits.neuroticism}%`, backgroundColor: '#ffeaa7' }}></div>
                     </div>
                     <span>{Math.round(100 - personality.traits.neuroticism)}%</span>
                   </div>

@@ -1,0 +1,507 @@
+.match-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+  border: 2px solid #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  margin: 16px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  animation: slideIn 0.5s ease-out;
+  font-family: 'Courier New', monospace;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.match-header {
+  margin-bottom: 24px;
+  border-bottom: 2px solid #ffffff;
+  padding-bottom: 16px;
+}
+
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.header-main h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.algorithm-badge {
+  background: #000000;
+  border: 1px solid #ffffff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+.match-tier {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+  text-shadow: none;
+}
+
+.match-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.match-section {
+  background: #000000;
+  border: 1px solid #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.match-section.score-section {
+  background: #000000;
+  border: 2px solid #ffffff;
+}
+
+.match-section.network-section {
+  background: #000000;
+  border: 1px solid #ffffff;
+}
+
+.match-section.trust {
+  background: #000000;
+  border: 1px solid #ffffff;
+}
+
+.match-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  opacity: 0.7;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.match-value {
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #e2e8f0;
+}
+
+.style-value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
+.style-icon {
+  font-size: 24px;
+}
+
+.match-value.celebrity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.celebrity-icon {
+  font-size: 24px;
+}
+
+.celebrity-name {
+  flex: 1;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+.match-badge, .verified-badge {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #60a5fa;
+}
+
+.verified-badge {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #4ade80;
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: center;
+}
+
+.score-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.score-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #000000;
+  border-radius: 6px;
+  border: 1px solid #ffffff;
+}
+
+.stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+.stat-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.network-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: center;
+}
+
+.network-visual {
+  text-align: center;
+  padding: 16px;
+  background: #000000;
+  border: 2px solid #ffffff;
+  border-radius: 12px;
+}
+
+.network-count-large {
+  font-size: 48px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: none;
+}
+
+.network-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  color: #ffffff;
+}
+
+.network-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.network-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.net-label {
+  color: #ffffff;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.net-value {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.network-bar {
+  height: 8px;
+  background: #000000;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+  border: 1px solid #ffffff;
+}
+
+.network-bar-fill {
+  height: 100%;
+  background: #ffffff;
+  border-radius: 4px;
+  transition: width 0.8s ease-out;
+}
+
+.trust-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.trust-icon {
+  font-size: 24px;
+}
+
+.trust-text {
+  flex: 1;
+  color: #ffffff;
+}
+
+.score-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 4px solid #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  flex-shrink: 0;
+}
+
+.score-number {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.score-total {
+  font-size: 12px;
+  opacity: 0.8;
+  color: #ffffff;
+}
+
+.score-bar-container {
+  flex: 1;
+  height: 12px;
+  background: #000000;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ffffff;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s ease-out;
+  background: #ffffff !important;
+  box-shadow: none;
+}
+
+/* Quality Breakdown Section */
+.quality-section {
+  background: #000000;
+  border: 1px solid #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.quality-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.quality-item {
+  display: grid;
+  grid-template-columns: 100px 1fr 50px;
+  align-items: center;
+  gap: 12px;
+}
+
+.quality-label {
+  font-size: 12px;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.quality-bar-container {
+  background: #000000;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #ffffff;
+}
+
+.quality-bar-fill {
+  height: 100%;
+  background: #ffffff;
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+.quality-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: right;
+}
+
+.improvement-tips {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #000000;
+  border: 1px solid #ffffff;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #ffffff;
+}
+
+/* Historical Context Section */
+.historical-section {
+  background: #000000;
+  border: 1px solid #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.historical-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.hist-stat {
+  text-align: center;
+}
+
+.hist-label {
+  display: block;
+  font-size: 11px;
+  color: #ffffff;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.hist-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Personality Metrics */
+.personality-metrics {
+  margin-top: 16px;
+  padding: 12px;
+  background: #000000;
+  border-radius: 8px;
+  border: 1px solid #ffffff;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 50px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.metric-row:last-child {
+  margin-bottom: 0;
+}
+
+.metric-label {
+  font-size: 11px;
+  color: #ffffff;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.metric-bar {
+  background: #000000;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid #ffffff;
+}
+
+.metric-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+  background: #ffffff !important;
+  box-shadow: none;
+}
+
+.metric-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .match-card {
+    padding: 16px;
+  }
+
+  .compatibility-score {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .match-value.celebrity {
+    font-size: 18px;
+  }
+
+  .quality-item {
+    grid-template-columns: 80px 1fr 40px;
+  }
+
+  .historical-stats {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .metric-row {
+    grid-template-columns: 100px 1fr 40px;
+    gap: 8px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+  }
+}
+
