@@ -89,11 +89,34 @@ function App() {
       });
     });
 
+    socket.on('personality_update', (data) => {
+      console.log('📊 Received personality update:', data);
+      
+      // Map backend metrics to Big Five traits for visualization
+      const traits = {
+        openness: Math.min(100, Math.max(0, Math.round(50 + (data.metrics.analyticalScore - 50) * 0.5 + (data.metrics.expressiveness - 50) * 0.3))),
+        conscientiousness: Math.min(100, Math.max(0, Math.round(data.metrics.formality * 0.8 + 20))),
+        extraversion: Math.min(100, Math.max(0, Math.round(data.metrics.enthusiasm * 0.7 + data.metrics.expressiveness * 0.3))),
+        agreeableness: Math.min(100, Math.max(0, Math.round(60 + (data.metrics.expressiveness - 50) * 0.4))),
+        neuroticism: Math.min(100, Math.max(0, Math.round(50 - (data.metrics.formality - 50) * 0.3)))
+      };
+      
+      const personality = {
+        type: data.style.title || 'Analyzing...',
+        traits: traits
+      };
+      
+      setPersonality(personality);
+      setIsAnalyzing(false);
+      console.log('✨ Personality visualization updated:', personality);
+    });
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('connect_error');
       socket.off('message');
+      socket.off('personality_update');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
