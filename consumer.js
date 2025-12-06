@@ -8,8 +8,19 @@ import { Server } from 'socket.io';
 import natural from 'natural';
 import compromise from 'compromise';
 import Sentiment from 'sentiment';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load synthetic LinkedIn profiles
+const syntheticProfiles = JSON.parse(
+  readFileSync(join(__dirname, 'synthetic-profiles.json'), 'utf-8')
+).profiles;
 
 const sentiment = new Sentiment();
 const TfIdf = natural.TfIdf;
@@ -545,6 +556,35 @@ Be creative and insightful. Choose a real successful founder whose communication
   if (mode === 'match') {
     const analysisResult = analyzeCommunicationStyle(text);
     
+    // Find best matching LinkedIn profile based on communication style similarity
+    const userMetrics = analysisResult.metrics;
+    const profileMatches = syntheticProfiles.map(profile => {
+      // Calculate similarity score (0-100) based on personality metrics
+      const diffs = {
+        formality: Math.abs(userMetrics.formality - profile.communicationStyle.formality),
+        enthusiasm: Math.abs(userMetrics.enthusiasm - profile.communicationStyle.enthusiasm),
+        directness: Math.abs(userMetrics.directness - profile.communicationStyle.directness),
+        analytical: Math.abs(userMetrics.analyticalScore - profile.communicationStyle.analytical),
+        expressiveness: Math.abs(userMetrics.expressiveness - profile.communicationStyle.expressiveness)
+      };
+      
+      // Average difference (lower is better)
+      const avgDiff = (diffs.formality + diffs.enthusiasm + diffs.directness + diffs.analytical + diffs.expressiveness) / 5;
+      
+      // Convert to similarity score (0-100, higher is better)
+      const similarityScore = Math.max(0, Math.min(100, 100 - avgDiff));
+      
+      return {
+        ...profile,
+        calculatedMatchScore: Math.round(similarityScore)
+      };
+    });
+    
+    // Sort by similarity and get top 3
+    const topMatches = profileMatches
+      .sort((a, b) => b.calculatedMatchScore - a.calculatedMatchScore)
+      .slice(0, 3);
+    
     // Use GPT to generate a celebrity match based on the style title
     try {
       const celebrityPrompt = `Given someone with the communication archetype "${analysisResult.styleTitle}" who is described as "${analysisResult.communicationStyle}", suggest ONE real successful founder/entrepreneur/business leader whose communication style matches this profile. Just respond with their name only, nothing else.`;
@@ -581,6 +621,19 @@ Be creative and insightful. Choose a real successful founder whose communication
       console.error('Celebrity generation error:', error);
       analysisResult.matches = 'Successful Entrepreneur';
     }
+    
+    // Add LinkedIn profile matches to the result
+    analysisResult.linkedInMatches = topMatches.map(profile => ({
+      name: profile.name,
+      title: profile.title,
+      location: profile.location,
+      headline: profile.headline,
+      matchScore: profile.calculatedMatchScore,
+      styleTitle: profile.styleTitle,
+      mutualConnections: profile.mutualConnections,
+      profileUrl: profile.profileUrl,
+      interests: profile.interests
+    }));
     
     return JSON.stringify(analysisResult, null, 2);
   }
@@ -1067,10 +1120,27 @@ async function consumeMessages() {
               try {
                 const matchData = JSON.parse(result);
                 
-                // Simple text for iMessage
-                replyText = `Your communication style: ${matchData.communicationStyle}\n\n` +
-                  `You write like: ${matchData.matches}\n` +
-                  `Match score: ${matchData.compatibilityScore}/100 🤝`;
+                // Build iMessage text with LinkedIn profiles
+                let replyParts = [
+                  `Your communication style: ${matchData.communicationStyle}\n`,
+                  `You write like: ${matchData.matches}`,
+                  `Match score: ${matchData.compatibilityScore}/100 🤝\n`
+                ];
+                
+                // Add top LinkedIn matches
+                if (matchData.linkedInMatches && matchData.linkedInMatches.length > 0) {
+                  replyParts.push('\n📊 LinkedIn Matches:\n');
+                  matchData.linkedInMatches.forEach((profile, idx) => {
+                    replyParts.push(
+                      `\n${idx + 1}. ${profile.name} (${profile.matchScore}% match)`,
+                      `   ${profile.title}`,
+                      `   ${profile.location}`,
+                      `   💼 ${profile.mutualConnections} mutual connections`
+                    );
+                  });
+                }
+                
+                replyText = replyParts.join('\n');
                 
                 // Rich data for UI (will be formatted nicely by MatchCard)
                 uiMessage = {
